@@ -327,10 +327,13 @@ def analyze(word: str) -> List[Analysis]:
                         analysis["UNGRAMMATICAL"] = True
         
         if "-vIS:v:suff" in analysis["PARTS"] and \
-            "-taH:v:suff" not in analysis["PARTS"] and "-lI':v:suff" not in analysis["PARTS"]:
+            "-taH:v:suff" not in analysis["PARTS"]:
             analysis["UNGRAMMATICAL"] = True
         
         if "-lu':v:suff" in analysis["PARTS"] and analysis.get("PREFIX", "") not in {"vI-", "Da-", "wI-", "bo-", "", "lu-"}:
+            analysis["UNGRAMMATICAL"] = True
+        
+        if analysis["XPOS"] in {"VS", "VI"} and analysis.get("PREFIX", "") not in {"yI-", "pe-", "jI-", "bI-", "ma-", "Su-", ""}:
             analysis["UNGRAMMATICAL"] = True
 
     return ans

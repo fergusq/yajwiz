@@ -56,8 +56,9 @@ Currently the analyzer is very permissive and does allow using wrong plurals and
 
 - Using **-pu'**, **-wI'**, **-lI'**, etc. when the noun is not a person noun
 - Using **-Du'** when the noun is not a body part
-- Using **-taH** and not using **-taH** or **-lI'**
+- Using **-vIS** without using **-taH**
 - Using **-lu'** with an illegal verb prefix
+- Using intransitive verbs with prefixes indicating object
 
 There is also a simpler function ``yajwiz.split_to_morphemes``, that returns a set of tuples of strings (usually there will be only one tuple in the set):
 
