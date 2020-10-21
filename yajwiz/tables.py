@@ -1,5 +1,8 @@
 
 
+from typing import Dict, Literal, Optional, Set, Tuple
+
+
 SUFFIX_TYPES = {
     ("-'a'", "n"): "N1",
     ("-Hom", "n"): "N1",
@@ -256,4 +259,60 @@ UNIVERSAL_FEATURES = {
     #"-SanIDbIp": "L1",
     ("-DIch", "L2"): "NumType=Ord",
     #"-logh": "L2",
+}
+
+Person = Literal[0, 1, 2, 3]
+Number = Literal["Sing", "Plur"]
+
+PREFIX_TABLE: Dict[
+    Tuple[str, str],
+    Tuple[
+        Set[Person],
+        Optional[Number],
+        Set[Person],
+        Optional[Number]
+    ]
+] = {
+    ("HI-", "P"): ({2}, None, {1}, "Sing"),
+    ("gho-", "P"): ({2}, None, {1}, "Plur"),
+    ("yI-", "P"): ({2}, None, {3,0}, "Sing"),
+    ("tI-", "P"): ({2}, None, {3}, "Plur"),
+    ("pe-", "P"): ({2}, "Plur", {0}, None),
+
+    ("qa-", "P"): ({1}, "Sing", {2}, "Sing"),
+    ("Sa-", "P"): ({1}, "Sing", {2}, "Plur"),
+    ("vI-", "P"): ({1}, "Sing", {3}, None),
+    ("jI-", "P"): ({1}, "Sing", {0}, None),
+
+    ("pI-", "P"): ({1}, "Plur", {2}, "Sing"),
+    ("re-", "P"): ({1}, "Plur", {2}, "Plur"),
+    ("wI-", "P"): ({1}, "Plur", {3}, "Sing"),
+    ("DI-", "P"): ({1}, "Plur", {3}, "Plur"),
+    ("ma-", "P"): ({1}, "Plur", {0}, None),
+
+    ("cho-", "P"): ({2}, "Sing", {1}, "Sing"),
+    ("ju-", "P"): ({2}, "Sing", {1}, "Plur"),
+    ("Da-", "P"): ({2}, "Sing", {3}, None),
+    ("bI-", "P"): ({2}, "Sing", {0}, None),
+
+    ("tu-", "P"): ({2}, "Plur", {1}, "Sing"),
+    ("che-", "P"): ({2}, "Plur", {1}, "Plur"),
+    ("bo-", "P"): ({2}, "Plur", {3}, None),
+    ("Su-", "P"): ({2}, "Plur", {0}, None),
+
+    ("mu-", "P"): ({3}, None, {1}, "Sing"),
+    ("nu-", "P"): ({3}, None, {1}, "Plur"),
+    ("Du-", "P"): ({3}, "Sing", {2}, "Sing"),
+    ("nI-", "P"): ({3}, "Plur", {2}, "Sing"),
+    ("lI-", "P"): ({3}, None, {2}, "Plur"),
+    ("lu-", "P"): ({3}, "Plur", {3}, "Sing"),
+
+    ("-", "P"): ({3}, None, {3,0}, None),
+
+    ("vI-", "NP"): ({0}, None, {1}, "Sing"),
+    ("wI-", "NP"): ({0}, None, {1}, "Plur"),
+    ("Da-", "NP"): ({0}, None, {2}, "Sing"),
+    ("bo-", "NP"): ({0}, None, {2}, "Plur"),
+    ("-", "NP"): ({0}, None, {3,0}, "Sing"),
+    ("lu-", "NP"): ({0}, None, {3}, "Plur"),
 }

@@ -6,7 +6,7 @@ import os
 
 from typing import DefaultDict, Dict, List, Set, Tuple, Optional, Literal, TypedDict
 
-from .tables import SUFFIX_TYPES, UNIVERSAL_FEATURES, XPOS_TO_UPOS
+from .tables import SUFFIX_TYPES, UNIVERSAL_FEATURES, XPOS_TO_UPOS, PREFIX_TABLE, Person, Number
 
 Xpos = Literal["VS", "VT", "VI", "VA", "V?", "NL", "NB", "PRON", "NUM", "N", "ADV", "EXCL", "CONJ", "QUES", "UNK"]
 
@@ -168,11 +168,20 @@ def _next_morphem(parsed: List[str], i: int) -> Tuple[int, Optional[str]]:
     
     return oi, None
 
+class SyntaxInfo(TypedDict, total=False):
+    ROLE: Literal["NP", "VP", "OTHER"]
+    OBJECT_PERSON: Set[Person]
+    OBJECT_NUMBER: Optional[Number]
+    SUBJECT_PERSON: Set[Person]
+    SUBJECT_NUMBER: Optional[Number]
+    PLURAL: bool
+
 class _AnalysisRequired(TypedDict):
     WORD: str
     LEMMA: str
     POS: str
     XPOS: Xpos
+    BOQWIZ_POS: str
     PARTS: List[str]
 
 class Analysis(_AnalysisRequired, total=False):
@@ -180,6 +189,7 @@ class Analysis(_AnalysisRequired, total=False):
     SUFFIX: Dict[str, str]
     XPOS_GSUFF: str
     UNGRAMMATICAL: bool
+    SYNTAX_INFO: SyntaxInfo
 
 def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Pattern[str], lemma_idx: int, word: str, infl_pos:str=None, lemma_pred=lambda l: True):
     if m := regex.fullmatch(word):
@@ -231,6 +241,7 @@ def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Patter
                         #new_obj["BOQWIZ"] = entry
 
                         new_obj["XPOS"] = _get_xpos(entry)
+                        new_obj["BOQWIZ_POS"] = entry["part_of_speech"]
 
                         if not lemma_pred(entry):
                             continue
@@ -248,6 +259,7 @@ def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Patter
             "WORD": word,
             "POS": start_pos.upper(),
             "XPOS": "UNK",
+            "BOQWIZ_POS": "?",
             "PARTS": [],
             "LEMMA": "",
         }
@@ -268,7 +280,7 @@ GENDERED_SUFFIXES = {
     "other": set(),
 }
 
-def analyze(word: str) -> List[Analysis]:
+def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
     """
     Given a word, returns a list of possible analyses.
 
@@ -299,6 +311,7 @@ def analyze(word: str) -> List[Analysis]:
                 "LEMMA": entry["entry_name"],
                 "POS": "OTHER",
                 "XPOS": _get_xpos(entry),
+                "BOQWIZ_POS": entry["part_of_speech"],
                 "PARTS": [ entry["entry_name"] + ":" + entry["part_of_speech"] ],
             })
     
@@ -333,8 +346,60 @@ def analyze(word: str) -> List[Analysis]:
         if "-lu':v:suff" in analysis["PARTS"] and analysis.get("PREFIX", "") not in {"vI-", "Da-", "wI-", "bo-", "", "lu-"}:
             analysis["UNGRAMMATICAL"] = True
         
-        if analysis["XPOS"] in {"VS", "VI"} and analysis.get("PREFIX", "") not in {"yI-", "pe-", "jI-", "bI-", "ma-", "Su-", ""}:
+        if analysis["XPOS"] in {"VS", "VI"} and analysis.get("PREFIX", "") not in {"yI-", "pe-", "jI-", "bI-", "ma-", "Su-", ""} and "-moH:v:suff" not in analysis["PARTS"]:
             analysis["UNGRAMMATICAL"] = True
+        
+        if "-ghach:v:suff" in analysis["PARTS"] and analysis["PARTS"].index("-ghach:v:suff") - analysis["PARTS"].index(analysis["LEMMA"] + ":" + analysis["BOQWIZ_POS"]) < 2:
+            analysis["UNGRAMMATICAL"] = True
+        
+        # Add extra information regarding the words rule in the syntax
+        if include_syntactical_info:
+            info: SyntaxInfo = {}
+            analysis["SYNTAX_INFO"] = info
+            if analysis["POS"] == "N":
+                info["ROLE"] = "NP"
+            
+            elif analysis["POS"] == "V" and analysis.get("SUFFIX", {}).get("V9", None) in {"-wI'", "-ghach"}:
+                info["ROLE"] = "NP"
+            
+            elif analysis["POS"] == "V":
+                info["ROLE"] = "VP"
+            
+            else:
+                info["ROLE"] = "OTHER"
+            
+            if info["ROLE"] == "VP":
+                voice = "NP" if "-lu':v:suff" in analysis["PARTS"] else "P"
+                subj_person: Set[Person]
+                subj_number: Optional[Number]
+                obj_person: Set[Person]
+                obj_number: Optional[Number]
+                if "PREFIX" in analysis or voice == "NP":
+                    subj_person, subj_number, obj_person, obj_number = PREFIX_TABLE[(analysis.get("PREFIX", "-"), voice)]
+                
+                elif analysis["XPOS"] in {"VS", "VI"}:
+                    subj_person = {3}
+                    subj_number = None
+                    obj_person = {0}
+                    obj_number = None
+
+                else:
+                    subj_person = {3}
+                    subj_number = None
+                    obj_person = {0, 3}
+                    obj_number = None
+                
+                info["SUBJECT_PERSON"] = subj_person
+                info["SUBJECT_NUMBER"] = subj_number
+                info["OBJECT_PERSON"] = obj_person
+                info["OBJECT_NUMBER"] = obj_number
+            
+            elif info["ROLE"] == "NP":
+                if "inhps" in analysis["BOQWIZ_POS"] or "inhpl" in analysis["BOQWIZ_POS"]:
+                    info["PLURAL"] = False
+
+                if analysis.get("SUFFIX", {}).get("N2", None) in {"-pu'", "-Du'", "-mey"}:
+                    info["PLURAL"] = True
 
     return ans
 
