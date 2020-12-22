@@ -168,6 +168,38 @@ def _next_morphem(parsed: List[str], i: int) -> Tuple[int, Optional[str]]:
     
     return oi, None
 
+LETTER = re.compile(r"(ch|gh|ng|tlh|[abDeHIjlmnopqQrStuvwy'])")
+
+def split_to_letters(word: str) -> List[str]:
+    letters = []
+    while word:
+        if m := re.match(LETTER, word):
+            letter = m.group(1)
+            word = word[len(letter):]
+            letters += [letter]
+
+        else:
+            word = word[1:]
+
+    return letters
+
+def split_to_syllables(word: str) -> List[str]:
+    letters = split_to_letters(word)
+    syllables = [""]
+
+    for prev, cur, succ in zip([""]+letters, letters, letters[1:]+[""]):
+        if syllables[-1] and \
+            cur not in "aeIou" and \
+            (succ and succ in "aeIou" or \
+                prev and prev not in "aeIou" and \
+                not (prev+cur) in {"w'", "y'", "rgh"}):
+            syllables.append(cur)
+
+        else:
+            syllables[-1] += cur
+    
+    return syllables
+
 class SyntaxInfo(TypedDict, total=False):
     ROLE: Literal["NP", "VP", "OTHER"]
     OBJECT_PERSON: Set[Person]
@@ -446,18 +478,19 @@ def tokenize(sentence: str) -> List[Tuple[TokenType, str]]:
     """
     Tokenizes the given text and returns a list of tuples with form `(type, value)` where type is one of `"WORD"`, `"SPACE"`, `"PUNCT"`.
     """
-    tokens: List[Tuple[TokenType, str]] = [("WORD", "")]
-    for char in sentence:
-        if re.match(r"[a-zA-Z'0-9]", char):
-            tokens[-1] = ("WORD", tokens[-1][1] + char)
+    tokens: List[Tuple[TokenType, str]] = []
+    for matches in re.findall(r"([a-zA-Z'0-9]+|\s+|(.)\2*)", sentence):
+        token = matches[0]
+        if re.fullmatch(r"[a-zA-Z'0-9]+", token):
+            tokens.append(("WORD", token))
         
-        elif re.match(r"\s", char):
-            tokens += [("SPACE", char), ("WORD", "")]
+        elif re.fullmatch(r"\s+", token):
+            tokens.append(("SPACE", token))
         
-        else:
-            tokens += [("PUNCT", char), ("WORD", "")]
+        elif token:
+            tokens.append(("PUNCT", token))
     
-    return [token for token in tokens if token[1]]
+    return tokens
 
 def text_to_conllu_without_tagger(text: str) -> str:
     """
