@@ -171,6 +171,9 @@ def _next_morphem(parsed: List[str], i: int) -> Tuple[int, Optional[str]]:
 LETTER = re.compile(r"(ch|gh|ng|tlh|[abDeHIjlmnopqQrStuvwy'])")
 
 def split_to_letters(word: str) -> List[str]:
+    """
+    Splits the given word to Klingon letters. The word must not contain spaces or foreign letters.
+    """
     letters = []
     while word:
         if m := re.match(LETTER, word):
@@ -184,6 +187,9 @@ def split_to_letters(word: str) -> List[str]:
     return letters
 
 def split_to_syllables(word: str) -> List[str]:
+    """
+    Splits the given word to syllables. The word msut not contain spaces or foreign words and it should follow the Klingon phonotactics.
+    """
     letters = split_to_letters(word)
     syllables = [""]
 
