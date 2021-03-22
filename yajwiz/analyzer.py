@@ -74,7 +74,9 @@ ALL_WORDS: Set[str] = set()
 WORD_INDEX: DefaultDict[str, List[BoqwizEntry]] = defaultdict(lambda: [])
 XPOS_INDEX: DefaultDict[str, Set[BoqwizEntry]] = defaultdict(set)
 
-for entry in data["qawHaq"].values():
+for boqwiz_id in data["qawHaq"]:
+    entry = data["qawHaq"][boqwiz_id]
+    entry["id"] = boqwiz_id
     word = entry["entry_name"]
     pos = entry["part_of_speech"]
     if "hyp" in pos:
@@ -274,12 +276,13 @@ def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Patter
                 objs = []
                 for entry in WORD_INDEX[part + ":" + pos]:
                     new_obj = copy.deepcopy(obj)
-                    new_obj["PARTS"].append(part + ":" + entry["part_of_speech"])
+                    new_obj["PARTS"].append(entry["id"])
                     if i == lemma_idx:
                         #new_obj["BOQWIZ"] = entry
 
                         new_obj["XPOS"] = _get_xpos(entry)
                         new_obj["BOQWIZ_POS"] = entry["part_of_speech"]
+                        new_obj["BOQWIZ_ID"] = entry["id"]
 
                         if not lemma_pred(entry):
                             continue
@@ -298,6 +301,7 @@ def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Patter
             "POS": start_pos.upper(),
             "XPOS": "UNK",
             "BOQWIZ_POS": "?",
+            "BOQWIZ_ID": "?",
             "PARTS": [],
             "LEMMA": "",
         }
@@ -308,13 +312,13 @@ def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Patter
 
 GENDERED_SUFFIXES = {
     "being": {
-        "-wI':n:suff",
-        "-lI':n:suff",
-        "-ma':n:suff",
-        "-ra':n:suff",
-        "-pu':n:suff"
+        "-wI':n",
+        "-lI':n",
+        "-ma':n",
+        "-ra':n",
+        "-pu':n",
     },
-    "body": {"-Du':n:suff"},
+    "body": {"-Du':n"},
     "other": set(),
 }
 
@@ -350,7 +354,8 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
                 "POS": "OTHER",
                 "XPOS": _get_xpos(entry),
                 "BOQWIZ_POS": entry["part_of_speech"],
-                "PARTS": [ entry["entry_name"] + ":" + entry["part_of_speech"] ],
+                "BOQWIZ_ID": entry["id"],
+                "PARTS": [ entry["id"] ],
             })
     
     for analysis in ans:
@@ -367,28 +372,34 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
         
         # Check for easy morphological errors:
         
-        if analysis["POS"] == "N":
-            gender = "body" if "body" in analysis["PARTS"][0] else \
-                "being" if "being" in analysis["PARTS"][0] else \
+        if analysis["POS"] == "N" and analysis["LEMMA"] not in {"qor", "chuD", "qempa'", "no'", "mang", "negh"}:
+            gender = "body" if "body" in analysis["BOQWIZ_POS"] else \
+                "being" if "being" in analysis["BOQWIZ_POS"] or "name" in analysis["BOQWIZ_POS"] else \
                 "other"
+
+            if analysis["LEMMA"] in {"qorDu'", "latlh"}: # these can be either language users or others
+                gender = "being"
             
             for part in analysis["PARTS"]:
                 for other_gender in {"being", "body", "other"} - {gender}:
                     if part in GENDERED_SUFFIXES[other_gender]:
-                        analysis["UNGRAMMATICAL"] = True
+                        analysis["UNGRAMMATICAL"] = "ILLEGAL PLURAL OR POSSESSIVE SUFFIX"
         
-        if "-vIS:v:suff" in analysis["PARTS"] and \
-            "-taH:v:suff" not in analysis["PARTS"]:
-            analysis["UNGRAMMATICAL"] = True
+        if "-vIS:v" in analysis["PARTS"] and \
+            "-taH:v" not in analysis["PARTS"]:
+            analysis["UNGRAMMATICAL"] = "-vIS WITHOUT -taH"
         
-        if "-lu':v:suff" in analysis["PARTS"] and analysis.get("PREFIX", "") not in {"vI-", "Da-", "wI-", "bo-", "", "lu-"}:
-            analysis["UNGRAMMATICAL"] = True
+        if "-lu':v" in analysis["PARTS"] and analysis.get("PREFIX", "") not in {"vI-", "Da-", "wI-", "bo-", "", "lu-"}:
+            analysis["UNGRAMMATICAL"] = "ILLEGAL PREFIX WITH -lu'"
         
-        if analysis["XPOS"] in {"VS", "VI"} and analysis.get("PREFIX", "") not in {"yI-", "pe-", "jI-", "bI-", "ma-", "Su-", ""} and "-moH:v:suff" not in analysis["PARTS"]:
-            analysis["UNGRAMMATICAL"] = True
+        if analysis["XPOS"] in {"VS", "VI"} and analysis.get("PREFIX", "") not in {"yI-", "pe-", "jI-", "bI-", "ma-", "Su-", ""} and "-moH:v" not in analysis["PARTS"]:
+            analysis["UNGRAMMATICAL"] = "ILLEGAL SUFFIX WITH INTRANSITIVE VERB"
         
-        if "-ghach:v:suff" in analysis["PARTS"] and analysis["PARTS"].index("-ghach:v:suff") - analysis["PARTS"].index(analysis["LEMMA"] + ":" + analysis["BOQWIZ_POS"]) < 2:
-            analysis["UNGRAMMATICAL"] = True
+        if "-ghach:v" in analysis["PARTS"] and analysis["PARTS"].index("-ghach:v") - analysis["PARTS"].index(analysis["BOQWIZ_ID"]) < 2:
+            analysis["UNGRAMMATICAL"] = "-ghach WITHOUT OTHER SUFFIX"
+
+        if "-jaj:v" in analysis["PARTS"] and analysis.get("SUFFIX", {}).get("V7", "") != "":
+            analysis["UNGRAMMATICAL"] = "-jaj WITH ASPECT"
         
         # Add extra information regarding the words rule in the syntax
         if include_syntactical_info:
@@ -407,7 +418,7 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
                 info["ROLE"] = "OTHER"
             
             if info["ROLE"] == "VP":
-                voice = "NP" if "-lu':v:suff" in analysis["PARTS"] else "P"
+                voice = "NP" if "-lu':v" in analysis["PARTS"] else "P"
                 subj_person: Set[Person]
                 subj_number: Optional[Number]
                 obj_person: Set[Person]
@@ -497,6 +508,44 @@ def tokenize(sentence: str) -> List[Tuple[TokenType, str]]:
             tokens.append(("PUNCT", token))
     
     return tokens
+
+def get_errors(sentence: str) -> List[str]:
+    errors = []
+    tokens = [token for token in tokenize(sentence) if token[0] != "SPACE"]
+    for (token1_type, token1_text), (token2_type, token2_text), (token3_type, token3_text) in zip(tokens, tokens[1:]+[(None, None)], tokens[2:]+[(None, None), (None, None)]):
+        if token1_type == "WORD":
+            token1 = analyze(token1_text)
+            if not token1:
+                errors.append(f"UNKNOWN WORD {token1_text}")
+                continue
+
+            if all(token.get("UNGRAMMATICAL", None) for token in token1):
+                errors.append(token1[0]["UNGRAMMATICAL"])
+
+            if not token2_type or token2_type != "WORD":
+                continue
+
+            token2 = analyze(token2_text)
+            if not token2:
+                continue
+
+            if token1_text == "'e'":
+                if all("V7" in token.get("SUFFIX", {}) for token in token2):
+                    errors.append("ASPECT SUFFIX IN COMPLEX SENTENCE")
+
+                if token3_type and token3_type == "WORD":
+                    token3 = analyze(token3_text, True)
+
+                else:
+                    token3 = []
+
+                if token2_text in {"neH", "neHHa'", "je"} and token3 and all("V7" in token.get("SUFFIX", {}) for token in token3):
+                    errors.append("ASPECT SUFFIX IN COMPLEX SENTENCE")
+
+                if all(token["BOQWIZ_ID"] == "neH:v" for token in token2) or token2_text == "neH" and not any(3 in token.get("SYNTAX_INFO", {}).get("OBJECT_PERSON", set()) for token in token3):
+                    errors.append("'e' WITH neH")
+
+    return errors
 
 def text_to_conllu_without_tagger(text: str) -> str:
     """
