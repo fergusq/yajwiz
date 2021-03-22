@@ -231,7 +231,7 @@ class Analysis(_AnalysisRequired, total=False):
     UNGRAMMATICAL: bool
     SYNTAX_INFO: SyntaxInfo
 
-def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Pattern[str], lemma_idx: int, word: str, infl_pos:str=None, lemma_pred=lambda l: True):
+def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Pattern, lemma_idx: int, word: str, infl_pos:str=None, lemma_pred=lambda l: True):
     if m := regex.fullmatch(word):
         parsed = list(m.groups())
         def rec(i: int, pos: str, obj: Analysis):
