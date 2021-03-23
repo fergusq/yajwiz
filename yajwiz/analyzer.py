@@ -105,6 +105,11 @@ for boqwiz_id in data["qawHaq"]:
     ALL_WORDS.add(word)
     XPOS_INDEX[_get_xpos(entry)].add(word)
 
+# Match longer first
+VERBS.sort(key=lambda i: -len(i))
+STATIVE_VERBS.sort(key=lambda i: -len(i))
+NOUNS.sort(key=lambda i: -len(i))
+
 NOUN_SUFFIX_REGEX = r"('a'|Hom|(?<=[bDHjqlmnpQrStvwy'hg])oy|(?<![bDHjqlmnpQrStvwy'hg])'oy)?(pu'|Du'|mey)?(qoq|Hey|na')?(wI'|ma'|lI'|ra'|wIj|maj|lIj|raj|Daj|chaj|vam|vetlh)?(Daq|vo'|mo'|vaD|'e')?"
 
 NOUN_REGEX = re.compile(r"(" + r"|".join(NOUNS) + r")" + NOUN_SUFFIX_REGEX)
@@ -340,7 +345,7 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
     
     _analyze_word_with_pos(ans, "n", NOUN_REGEX, 0, word)
     _analyze_word_with_pos(ans, "n", NUMBER_REGEX, 0, word)
-    if not ans:
+    if not ans or len(ans[0]["PARTS"]) > 1:
         _analyze_word_with_pos(ans, "n", PRONOUN_VERB_REGEX, 0, word, infl_pos="v", lemma_pred=lambda e: "pro" in e["part_of_speech"])
 
     _analyze_word_with_pos(ans, "v", VERB_REGEX, 1, word)
@@ -392,7 +397,8 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
         if "-lu':v" in analysis["PARTS"] and analysis.get("PREFIX", "") not in {"vI-", "Da-", "wI-", "bo-", "", "lu-"}:
             analysis["UNGRAMMATICAL"] = "ILLEGAL PREFIX WITH -lu'"
         
-        if analysis["XPOS"] in {"VS", "VI"} and analysis.get("PREFIX", "") not in {"yI-", "pe-", "jI-", "bI-", "ma-", "Su-", ""} and "-moH:v" not in analysis["PARTS"]:
+        # Do not include XPOS=VI here because data is unreliable
+        if analysis["XPOS"] in {"VS"} and analysis.get("PREFIX", "") not in {"yI-", "pe-", "jI-", "bI-", "ma-", "Su-", ""} and "-moH:v" not in analysis["PARTS"]:
             analysis["UNGRAMMATICAL"] = "ILLEGAL SUFFIX WITH INTRANSITIVE VERB"
         
         if "-ghach:v" in analysis["PARTS"] and analysis["PARTS"].index("-ghach:v") - analysis["PARTS"].index(analysis["BOQWIZ_ID"]) < 2:
