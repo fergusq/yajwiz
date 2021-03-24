@@ -60,6 +60,7 @@ Currently the analyzer is very permissive and does allow using wrong plurals and
 - Using **-lu'** with an illegal verb prefix
 - Using intransitive verbs with prefixes indicating object
 - Using **-ghach** without any other verb suffix
+- Using aspect suffix with **-jaj**
 
 There is also a simpler function ``yajwiz.split_to_morphemes``, that returns a set of tuples of strings (usually there will be only one tuple in the set):
 
@@ -88,6 +89,14 @@ CONJ  Conjunction
 QUES  Question word (other than **'Iv** and **nuq**)
 UNK   Unknown
 ===== ===========
+
+Grammar checker
+---------------
+
+yajwI' can be used to find common grammar errors. You can either use the method ``yajwiz.get_errors`` or the following command line interface:
+
+.. code::
+    python -m yajwiz.grammar_check file.txt
 
 CONLL-U files and POS tagger
 ----------------------------
