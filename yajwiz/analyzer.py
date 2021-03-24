@@ -4,7 +4,7 @@ from collections import defaultdict
 import copy
 import os
 
-from typing import DefaultDict, Dict, List, Set, Tuple, Optional, Literal, TypedDict
+from typing import DefaultDict, Dict, List, NamedTuple, Set, Tuple, Optional, Literal, TypedDict
 
 from .tables import SUFFIX_TYPES, UNIVERSAL_FEATURES, XPOS_TO_UPOS, PREFIX_TABLE, Person, Number
 
@@ -227,13 +227,14 @@ class _AnalysisRequired(TypedDict):
     POS: str
     XPOS: Xpos
     BOQWIZ_POS: str
+    BOQWIZ_ID: str
     PARTS: List[str]
 
 class Analysis(_AnalysisRequired, total=False):
     PREFIX: str
     SUFFIX: Dict[str, str]
     XPOS_GSUFF: str
-    UNGRAMMATICAL: bool
+    UNGRAMMATICAL: str
     SYNTAX_INFO: SyntaxInfo
 
 def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Pattern, lemma_idx: int, word: str, infl_pos:str=None, lemma_pred=lambda l: True):
@@ -401,7 +402,7 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
         if analysis["XPOS"] in {"VS"} and analysis.get("PREFIX", "") not in {"yI-", "pe-", "jI-", "bI-", "ma-", "Su-", ""} and "-moH:v" not in analysis["PARTS"]:
             analysis["UNGRAMMATICAL"] = "ILLEGAL SUFFIX WITH INTRANSITIVE VERB"
         
-        if "-ghach:v" in analysis["PARTS"] and analysis["PARTS"].index("-ghach:v") - analysis["PARTS"].index(analysis["BOQWIZ_ID"]) < 2:
+        if "-ghach:v" in analysis["PARTS"] and analysis["PARTS"].index("-ghach:v") - analysis["PARTS"].index(analysis["BOQWIZ_ID"]) < 2 and analysis["LEMMA"] not in {"lo'laH"}:
             analysis["UNGRAMMATICAL"] = "-ghach WITHOUT OTHER SUFFIX"
 
         if "-jaj:v" in analysis["PARTS"] and analysis.get("SUFFIX", {}).get("V7", "") != "":
@@ -515,18 +516,35 @@ def tokenize(sentence: str) -> List[Tuple[TokenType, str]]:
     
     return tokens
 
-def get_errors(sentence: str) -> List[str]:
-    errors = []
-    tokens = [token for token in tokenize(sentence) if token[0] != "SPACE"]
-    for (token1_type, token1_text), (token2_type, token2_text), (token3_type, token3_text) in zip(tokens, tokens[1:]+[(None, None)], tokens[2:]+[(None, None), (None, None)]):
+class ProofreaderError(NamedTuple):
+    message: str
+    location: int
+
+def get_errors(sentence: str) -> List[ProofreaderError]:
+    errors: List[ProofreaderError] = []
+    tokens: List[Tuple[int, TokenType, str]] = []
+    char = 0
+    for token in tokenize(sentence):
+        if token[0] != "SPACE":
+            tokens.append((char, token[0], token[1]))
+        
+        char += len(token[1])
+    
+    for i in range(len(tokens)):
+        pos, token1_type, token1_text = tokens[i]
         if token1_type == "WORD":
             token1 = analyze(token1_text)
             if not token1:
-                errors.append(f"UNKNOWN WORD {token1_text}")
+                errors.append(ProofreaderError(f"UNKNOWN WORD {token1_text}", pos))
                 continue
 
             if all(token.get("UNGRAMMATICAL", None) for token in token1):
-                errors.append(token1[0]["UNGRAMMATICAL"])
+                errors.append(ProofreaderError(token1[0]["UNGRAMMATICAL"], pos))
+
+            if i > len(tokens)-2:
+                continue
+
+            _, token2_type, token2_text = tokens[i+1]
 
             if not token2_type or token2_type != "WORD":
                 continue
@@ -537,7 +555,9 @@ def get_errors(sentence: str) -> List[str]:
 
             if token1_text == "'e'":
                 if all("V7" in token.get("SUFFIX", {}) for token in token2):
-                    errors.append("ASPECT SUFFIX IN COMPLEX SENTENCE")
+                    errors.append(ProofreaderError("ASPECT SUFFIX IN COMPLEX SENTENCE", pos+1))
+
+                _, token3_type, token3_text = tokens[i+2] if i <= len(tokens)-3 else (0, None, "")
 
                 if token3_type and token3_type == "WORD":
                     token3 = analyze(token3_text, True)
@@ -546,10 +566,10 @@ def get_errors(sentence: str) -> List[str]:
                     token3 = []
 
                 if token2_text in {"neH", "neHHa'", "je"} and token3 and all("V7" in token.get("SUFFIX", {}) for token in token3):
-                    errors.append("ASPECT SUFFIX IN COMPLEX SENTENCE")
+                    errors.append(ProofreaderError("ASPECT SUFFIX IN COMPLEX SENTENCE", pos+2))
 
                 if all(token["BOQWIZ_ID"] == "neH:v" for token in token2) or token2_text == "neH" and not any(3 in token.get("SYNTAX_INFO", {}).get("OBJECT_PERSON", set()) for token in token3):
-                    errors.append("'e' WITH neH")
+                    errors.append(ProofreaderError("'e' WITH neH", pos))
 
     return errors
 
