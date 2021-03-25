@@ -96,6 +96,7 @@ Grammar checker
 yajwI' can be used to find common grammar errors. You can either use the method ``yajwiz.get_errors`` or the following command line interface:
 
 .. code::
+
     python -m yajwiz.grammar_check file.txt
 
 CONLL-U files and POS tagger
