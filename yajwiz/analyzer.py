@@ -70,6 +70,10 @@ VERBS: List[str] = []
 STATIVE_VERBS: List[str] = []
 NOUNS: List[str] = []
 
+DERIV_VERBS: List[str] = []
+DERIV_STATIVE_VERBS: List[str] = []
+DERIV_NOUNS: List[str] = []
+
 ALL_WORDS: Set[str] = set()
 WORD_INDEX: DefaultDict[str, List[BoqwizEntry]] = defaultdict(lambda: [])
 XPOS_INDEX: DefaultDict[str, Set[BoqwizEntry]] = defaultdict(set)
@@ -82,20 +86,30 @@ for boqwiz_id in data["qawHaq"]:
     if "hyp" in pos:
         continue
 
-    good = not (" " in word or "pref" in pos or "suff" in pos or "deriv" in pos)
+    very_bad = " " in word or "pref" in pos or "suff" in pos
+    good = not (very_bad or "deriv" in pos)
 
     if pos.startswith("v:") or pos == "v":
         if good:
             VERBS.append(word)
+        
+        elif not very_bad:
+            DERIV_VERBS.append(word)
 
         WORD_INDEX[word + ":v"].append(entry)
     
         if good and pos.startswith("v:is"):
             STATIVE_VERBS.append(word)
+        
+        elif not very_bad:
+            DERIV_STATIVE_VERBS.append(word)
     
     elif pos.startswith("n:") or pos == "n":
         if good:
             NOUNS.append(word)
+        
+        elif not very_bad:
+            DERIV_NOUNS.append(word)
 
         WORD_INDEX[word + ":n"].append(entry)
     
@@ -112,20 +126,42 @@ NOUNS.sort(key=lambda i: -len(i))
 
 NOUN_SUFFIX_REGEX = r"('a'|Hom|(?<=[bDHjqlmnpQrStvwy'hg])oy|(?<![bDHjqlmnpQrStvwy'hg])'oy)?(pu'|Du'|mey)?(qoq|Hey|na')?(wI'|ma'|lI'|ra'|wIj|maj|lIj|raj|Daj|chaj|vam|vetlh)?(Daq|vo'|mo'|vaD|'e')?"
 
-NOUN_REGEX = re.compile(r"(" + r"|".join(NOUNS) + r")" + NOUN_SUFFIX_REGEX)
+NOUN_REGEX = re.compile(r"")
 
 VERB_SUFFIX_REGEX = r"(Ha')?('egh|chuq)?(be'|qu')?(nIS|qang|rup|beH|vIp)?(be'|qu')?(choH|qa')?(be'|qu')?(moH)?(be'|qu')?(lu'|laH)?(be'|qu')?(chu'|bej|ba'|law')?(be'|qu')?(pu'|ta'|taH|lI')?(be'|qu')?(neS)?(be'|qu')?(Qo')?(?:(DI'|chugh|pa'|vIS|mo'|bogh|meH|'a'|jaj)|(?:(wI'|ghach)" + NOUN_SUFFIX_REGEX + r"))?"
 
-VERB_REGEX = re.compile(r"(|HI|gho|yI|tI|pe|qa|Sa|vI|jI|pI|re|DI|wI|ma|cho|ju|Da|bI|tu|che|bo|Su|mu|nu|Du|lI|nI|lu)("
-    + r"|".join(VERBS)
-    + r")" + VERB_SUFFIX_REGEX)
+VERB_REGEX = re.compile(r"")
 
 PRONOUN_VERB_REGEX = re.compile(r"(jIH|maH|SoH|tlhIH|ghaH|chaH|'oH|bIH)" + VERB_SUFFIX_REGEX)
 
-STATIVE_VERB_REGEX = re.compile(r"(" + r"|".join(STATIVE_VERBS) + r")(Ha')?(be')?(qu')?(be')?(Daq|vo'|mo'|vaD|'e')")
+STATIVE_VERB_REGEX = re.compile(r"")
 
 NUMBER_SUFFIX_REGEX = r"(maH|vatlh|SaD|SanID|netlh|bIp|'uy'|Saghan|maH'uy'|vatlhbIp|vatlh'uy'|SaDbIp|SanIDbIp)"
 NUMBER_REGEX = re.compile(r"(wa'|cha'|wej|loS|vagh|jav|Soch|chorgh|Hut)(?:" + NUMBER_SUFFIX_REGEX +  r"(DIch|logh|leS|Hu')?|" + NUMBER_SUFFIX_REGEX + r"?(DIch|logh|leS|Hu'))")
+
+def createRegexes():
+    global NOUN_REGEX, VERB_REGEX, STATIVE_VERB_REGEX
+
+    NOUN_REGEX = re.compile(r"(" + r"|".join(NOUNS) + r")" + NOUN_SUFFIX_REGEX)
+
+    VERB_REGEX = re.compile(r"(|HI|gho|yI|tI|pe|qa|Sa|vI|jI|pI|re|DI|wI|ma|cho|ju|Da|bI|tu|che|bo|Su|mu|nu|Du|lI|nI|lu)("
+        + r"|".join(VERBS)
+        + r")" + VERB_SUFFIX_REGEX)
+
+    STATIVE_VERB_REGEX = re.compile(r"(" + r"|".join(STATIVE_VERBS) + r")(Ha')?(be')?(qu')?(be')?(Daq|vo'|mo'|vaD|'e')")
+
+# Find derived words that don't mess with parsing and add them to the regexes
+
+def addIfDoesNotMatch(derived: List[str], all: List[str]):
+    for word in derived:
+        if not any(regex.fullmatch(word) for regex in [NOUN_REGEX, STATIVE_VERB_REGEX, NUMBER_REGEX, PRONOUN_VERB_REGEX, VERB_REGEX]):
+            all.append(word)
+
+createRegexes() # Create regexes for the first time
+addIfDoesNotMatch(DERIV_VERBS, VERBS)
+addIfDoesNotMatch(DERIV_STATIVE_VERBS, STATIVE_VERBS)
+addIfDoesNotMatch(DERIV_NOUNS, NOUNS)
+createRegexes() # Create regexes for the second time with the additional words
 
 def split_to_morphemes(word: str) -> Set[tuple]:
     """
@@ -402,7 +438,7 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
         if analysis["XPOS"] in {"VS"} and analysis.get("PREFIX", "") not in {"yI-", "pe-", "jI-", "bI-", "ma-", "Su-", ""} and "-moH:v" not in analysis["PARTS"]:
             analysis["UNGRAMMATICAL"] = "ILLEGAL SUFFIX WITH INTRANSITIVE VERB"
         
-        if "-ghach:v" in analysis["PARTS"] and analysis["PARTS"].index("-ghach:v") - analysis["PARTS"].index(analysis["BOQWIZ_ID"]) < 2 and analysis["LEMMA"] not in {"lo'laH"}:
+        if "-ghach:v" in analysis["PARTS"] and analysis["PARTS"].index("-ghach:v") - analysis["PARTS"].index(analysis["BOQWIZ_ID"]) < 2 and analysis["LEMMA"] not in {"lo'laH", "lo'laHbe'"}:
             analysis["UNGRAMMATICAL"] = "-ghach WITHOUT OTHER SUFFIX"
 
         if "-jaj:v" in analysis["PARTS"] and analysis.get("SUFFIX", {}).get("V7", "") != "":
