@@ -14,48 +14,57 @@ class BoqwizEntry(TypedDict):
     entry_name: str
     part_of_speech: str
 
+def _parse_boqwiz_pos(pos: str) -> Set[str]:
+    colon = pos.split(":")
+    if len(colon) == 1:
+        return set(colon)
+    
+    [tpos, tags] = colon
+    comma = tags.split(",")
+    return set([tpos]+comma)
+
 def _get_xpos(entry: BoqwizEntry) -> Xpos:
-    pos2 = entry["part_of_speech"]
-    if pos2.startswith("v:is"):
+    pos2 = _parse_boqwiz_pos(entry["part_of_speech"])
+    if "v" in pos2 and "is" in pos2:
         return "VS"
     
-    elif pos2.startswith("v:t"):
+    elif "v" in pos2 and pos2 & {"t", "t_c"}:
         return "VT"
     
-    elif pos2.startswith("v:i"):
+    elif "v" in pos2 and pos2 & {"i", "i_c"}:
         return "VI"
     
-    elif pos2.startswith("v:ambi"):
+    elif pos2 & {"ambi"}:
         return "VA"
     
-    elif pos2.startswith("v:") or pos2 == "v":
+    elif pos2 & {"v"}:
         return "V?"
     
-    elif pos2.startswith("n:") and "being" in pos2:
+    elif pos2 & {"n"} and pos2 & {"being"}:
         return "NL"
     
-    elif pos2.startswith("n:") and "body" in pos2:
+    elif pos2 & {"n"} and pos2 & {"body"}:
         return "NB"
     
-    elif pos2.startswith("n:") and ("pro" in pos2 or entry["entry_name"] in {"'Iv", "nuq", "jIH"}):
+    elif pos2 & {"n"} and ("pro" in pos2 or entry["entry_name"] in {"'Iv", "nuq", "jIH"}):
         return "PRON"
     
-    elif pos2.startswith("n") and entry["entry_name"] in {"wa'", "cha'", "wej", "loS", "vagh", "jav", "Soch", "chorgh", "Hut"}:
+    elif pos2 & {"n"} and entry["entry_name"] in {"wa'", "cha'", "wej", "loS", "vagh", "jav", "Soch", "chorgh", "Hut"}:
         return "NUM"
     
-    elif pos2.startswith("n:") or pos2 == "n":
+    elif pos2 & {"n"}:
         return "N"
     
-    elif pos2 == "adv":
+    elif pos2 & {"adv"}:
         return "ADV"
     
-    elif pos2.startswith("excl"):
+    elif pos2 & {"excl"}:
         return "EXCL"
     
-    elif pos2.startswith("conj"):
+    elif pos2 & {"conj"}:
         return "CONJ"
     
-    elif pos2.startswith("ques"):
+    elif pos2 & {"ques"}:
         return "QUES"
     
     else:
@@ -67,10 +76,10 @@ with open(os.path.join(SCRIPT_DIR, "data.json"), "r") as f:
     data = json.load(f)
 
 VERBS: List[str] = []
-STATIVE_VERBS: List[str] = []
+STATIVE_VERBS: List[str] = ["lo'laH", "lo'laHbe'"]
 NOUNS: List[str] = []
 
-DERIV_VERBS: List[str] = []
+DERIV_VERBS: List[str] = ["lo'laH", "lo'laHbe'"]
 DERIV_STATIVE_VERBS: List[str] = []
 DERIV_NOUNS: List[str] = []
 
@@ -82,14 +91,14 @@ for boqwiz_id in data["qawHaq"]:
     entry = data["qawHaq"][boqwiz_id]
     entry["id"] = boqwiz_id
     word = entry["entry_name"]
-    pos = entry["part_of_speech"]
+    pos = _parse_boqwiz_pos(entry["part_of_speech"])
     if "hyp" in pos:
         continue
 
     very_bad = " " in word or "pref" in pos or "suff" in pos
     good = not (very_bad or "deriv" in pos)
 
-    if pos.startswith("v:") or pos == "v":
+    if "v" in pos:
         if good:
             VERBS.append(word)
         
@@ -98,13 +107,13 @@ for boqwiz_id in data["qawHaq"]:
 
         WORD_INDEX[word + ":v"].append(entry)
     
-        if good and pos.startswith("v:is"):
+        if good and "is" in pos:
             STATIVE_VERBS.append(word)
         
         elif not very_bad:
             DERIV_STATIVE_VERBS.append(word)
     
-    elif pos.startswith("n:") or pos == "n":
+    elif "n" in pos:
         if good:
             NOUNS.append(word)
         
@@ -139,7 +148,7 @@ STATIVE_VERB_REGEX = re.compile(r"")
 NUMBER_SUFFIX_REGEX = r"(maH|vatlh|SaD|SanID|netlh|bIp|'uy'|Saghan|maH'uy'|vatlhbIp|vatlh'uy'|SaDbIp|SanIDbIp)"
 NUMBER_REGEX = re.compile(r"(wa'|cha'|wej|loS|vagh|jav|Soch|chorgh|Hut)(?:" + NUMBER_SUFFIX_REGEX +  r"(DIch|logh|leS|Hu')?|" + NUMBER_SUFFIX_REGEX + r"?(DIch|logh|leS|Hu'))")
 
-def createRegexes():
+def _create_regexes():
     global NOUN_REGEX, VERB_REGEX, STATIVE_VERB_REGEX
 
     NOUN_REGEX = re.compile(r"(" + r"|".join(NOUNS) + r")" + NOUN_SUFFIX_REGEX)
@@ -152,16 +161,16 @@ def createRegexes():
 
 # Find derived words that don't mess with parsing and add them to the regexes
 
-def addIfDoesNotMatch(derived: List[str], all: List[str]):
+def _add_if_does_not_match(derived: List[str], all: List[str]):
     for word in derived:
         if not any(regex.fullmatch(word) for regex in [NOUN_REGEX, STATIVE_VERB_REGEX, NUMBER_REGEX, PRONOUN_VERB_REGEX, VERB_REGEX]):
             all.append(word)
 
-createRegexes() # Create regexes for the first time
-addIfDoesNotMatch(DERIV_VERBS, VERBS)
-addIfDoesNotMatch(DERIV_STATIVE_VERBS, STATIVE_VERBS)
-addIfDoesNotMatch(DERIV_NOUNS, NOUNS)
-createRegexes() # Create regexes for the second time with the additional words
+_create_regexes() # Create regexes for the first time
+_add_if_does_not_match(DERIV_VERBS, VERBS)
+_add_if_does_not_match(DERIV_STATIVE_VERBS, STATIVE_VERBS)
+_add_if_does_not_match(DERIV_NOUNS, NOUNS)
+_create_regexes() # Create regexes for the second time with the additional words
 
 def split_to_morphemes(word: str) -> Set[tuple]:
     """
