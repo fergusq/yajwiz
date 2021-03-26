@@ -137,7 +137,7 @@ NOUN_SUFFIX_REGEX = r"('a'|Hom|(?<=[bDHjqlmnpQrStvwy'hg])oy|(?<![bDHjqlmnpQrStvw
 
 NOUN_REGEX = re.compile(r"")
 
-VERB_SUFFIX_REGEX = r"(Ha')?('egh|chuq)?(be'|qu')?(nIS|qang|rup|beH|vIp)?(be'|qu')?(choH|qa')?(be'|qu')?(moH)?(be'|qu')?(lu'|laH)?(be'|qu')?(chu'|bej|ba'|law')?(be'|qu')?(pu'|ta'|taH|lI')?(be'|qu')?(neS)?(be'|qu')?(Qo')?(?:(DI'|chugh|pa'|vIS|mo'|bogh|meH|'a'|jaj)|(?:(wI'|ghach)" + NOUN_SUFFIX_REGEX + r"))?"
+VERB_SUFFIX_REGEX = r"(Ha')?(be'|qu')?('egh|chuq)?(be'|qu')?(nIS|qang|rup|beH|vIp)?(be'|qu')?(choH|qa')?(be'|qu')?(moH)?(be'|qu')?(lu'|laH)?(be'|qu')?(chu'|bej|ba'|law')?(be'|qu')?(pu'|ta'|taH|lI')?(be'|qu')?(neS)?(be'|qu')?(Qo')?(?:(DI'|chugh|pa'|vIS|mo'|bogh|meH|'a'|jaj)|(?:(wI'|ghach)" + NOUN_SUFFIX_REGEX + r"))?"
 
 VERB_REGEX = re.compile(r"")
 
@@ -423,7 +423,7 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
         
         # Check for easy morphological errors:
         
-        if analysis["POS"] == "N" and analysis["LEMMA"] not in {"qor", "chuD", "qempa'", "no'", "mang", "negh"}:
+        if analysis["POS"] == "N" and analysis["LEMMA"] not in {"qor", "chuD"}:
             gender = "body" if "body" in analysis["BOQWIZ_POS"] else \
                 "being" if "being" in analysis["BOQWIZ_POS"] or "name" in analysis["BOQWIZ_POS"] else \
                 "other"
