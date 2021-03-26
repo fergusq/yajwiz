@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="yajwiz",
-    version="0.5.3",
+    version="0.5.4",
     author="Iikka Hauhio",
     author_email="fergusq@kaivos.org",
     packages=["yajwiz"],
