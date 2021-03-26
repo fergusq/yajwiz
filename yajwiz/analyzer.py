@@ -96,7 +96,7 @@ for boqwiz_id in data["qawHaq"]:
         continue
 
     very_bad = " " in word or "pref" in pos or "suff" in pos
-    good = not (very_bad or "deriv" in pos)
+    good = not (very_bad or "deriv" in pos or word in DERIV_NOUNS+DERIV_VERBS+DERIV_STATIVE_VERBS)
 
     if "v" in pos:
         if good:
