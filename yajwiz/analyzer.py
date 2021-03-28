@@ -95,10 +95,10 @@ for boqwiz_id in data["qawHaq"]:
     if "hyp" in pos:
         continue
 
-    very_bad = " " in word or "pref" in pos or "suff" in pos
-    good = not (very_bad or "deriv" in pos or word in DERIV_NOUNS+DERIV_VERBS+DERIV_STATIVE_VERBS)
+    very_bad = "pref" in pos or "suff" in pos
 
     if "v" in pos:
+        good = not very_bad and word not in DERIV_VERBS and word not in DERIV_STATIVE_VERBS
         if good:
             VERBS.append(word)
         
@@ -114,7 +114,7 @@ for boqwiz_id in data["qawHaq"]:
             DERIV_STATIVE_VERBS.append(word)
     
     elif "n" in pos:
-        if good:
+        if not very_bad and word not in DERIV_NOUNS:
             NOUNS.append(word)
         
         elif not very_bad:
