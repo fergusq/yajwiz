@@ -504,7 +504,7 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
 
     return ans
 
-def _word_to_conllu(num: int, word: str, analyses: List[Analysis]) -> tuple:
+def _word_to_conllu(num: int, word: str, analyses: List[Analysis], sentence: str, hand_tag: bool=False) -> tuple:
     if len(analyses) == 0:
         return (str(num), word, "_", "_", "_", "_", "_", "_", "_", "_")
     
@@ -514,9 +514,30 @@ def _word_to_conllu(num: int, word: str, analyses: List[Analysis]) -> tuple:
             pass
 
         else:
-            return (str(num), word, "_", "_", "_", "_", "_", "_", "_", "_")
+            if hand_tag:
+                user_choice = -1
+                print("\n" + sentence + "\n")
+                choices = []
+                for i, analysis in enumerate(analyses):
+                    print(str(i) + " " + str(analysis))
+                    choices.append(i)
+                while True:
+                    try:
+                        user_choice = int(input("\nChoose proper analysis: "))
+                    except ValueError:
+                        print("Please enter the number of the analysis as a digit.")
+                    if user_choice in choices:
+                        break
+                    else:
+                        print("Please choose one of the valid analyses.")
+            else:
+                return (str(num), word, "_", "_", "_", "_", "_", "_", "_", "_")
     
-    analysis = analyses[0]
+    try:
+        analysis = analyses[user_choice]
+    except UnboundLocalError:
+        analysis = analyses[0]
+
     feats = []
     extra = []
     if "PREFIX" in analysis:
@@ -618,30 +639,40 @@ def get_errors(sentence: str) -> List[ProofreaderError]:
 
     return errors
 
-def text_to_conllu_without_tagger(text: str) -> str:
+def text_to_conllu_without_tagger(text: str, hand_tag: bool=False) -> str:
     """
     Converts a given text to the CONLL-U format with morphological information (dependencies are not parsed).
     If a word has multiple analyses, its POS and other info is not included (as they are not exactly known).
+    If the hand_tag option is true, the user is presented with the full origin sentence and
+    prompted to choose from the list of multiple analyses.
     """
+    sentences = [line for line in text.split("\n")]
     ans = []
     tokens = tokenize(text)
     i = 1
-    for token_type, token in tokens:
-        if token_type == "SPACE":
-            continue
+    for sentence in sentences:
+        for token_type, token in tokens:
+            if token_type == "SPACE":
+                continue
 
-        elif token_type == "PUNCT":
-            ans.append("{}\t{}\t{}\tPUNCT\tPUNCT\t_\t_\t_\t_\t_".format(i, token, token))
-            if token in ".!?":
-                i = 1
-                ans.append("")
+            elif token_type == "PUNCT":
+                ans.append("{}\t{}\t{}\tPUNCT\tPUNCT\t_\t_\t_\t_\t_".format(i, token, token))
+                if token in ".!?":
+                    i = 1
+                    ans.append("")
+                
+                else:
+                    i += 1
             
             else:
+                analyses = analyze(token)
+                ans.append("\t".join(_word_to_conllu(i, token, analyses, sentence, hand_tag)))
                 i += 1
-        
-        else:
-            analyses = analyze(token)
-            ans.append("\t".join(_word_to_conllu(i, token, analyses)))
-            i += 1
     
     return "\n".join(ans)
+
+def hand_tag(text: str) -> str:
+    """
+    Shortcut for an option to tag multi-analysis words by hand.
+    """
+    return text_to_conllu_without_tagger(text, True)
