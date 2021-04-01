@@ -87,6 +87,9 @@ class BoqwizDictionary(NamedTuple):
                 for key, value in data["qawHaq"].items()
             }
         )
+    
+    def __repr__(self):
+        return f"<BoqwizDictionary version={self.version}>"
 
 def _try_load() -> Optional[dict]:
     try:
