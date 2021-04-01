@@ -374,10 +374,10 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
     _analyze_word_with_pos(ans, "n", NOUN_REGEX, 0, word)
     _analyze_word_with_pos(ans, "n", NUMBER_REGEX, 0, word)
     if not ans or len(ans[0]["PARTS"]) > 1:
-        _analyze_word_with_pos(ans, "n", PRONOUN_VERB_REGEX, 0, word, infl_pos="v", lemma_pred=lambda e: "pro" in e["part_of_speech"])
+        _analyze_word_with_pos(ans, "n", PRONOUN_VERB_REGEX, 0, word, infl_pos="v", lemma_pred=lambda e: "pro" in e.tags)
 
     _analyze_word_with_pos(ans, "v", VERB_REGEX, 1, word)
-    _analyze_word_with_pos(ans, "v", STATIVE_VERB_REGEX, 0, word, lemma_pred=lambda e: "is" in e["part_of_speech"])
+    _analyze_word_with_pos(ans, "v", STATIVE_VERB_REGEX, 0, word, lemma_pred=lambda e: "is" in e.tags)
 
     if word + ":other" in WORD_INDEX:
         for entry in WORD_INDEX[word + ":other"]:
