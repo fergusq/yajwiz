@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import requests
 import logging
+import sys
 
 logger = logging.Logger("yajwiz")
 
@@ -88,14 +89,19 @@ class BoqwizDictionary(NamedTuple):
         )
 
 def _try_load() -> Optional[dict]:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    if DICTIONARY_PATH.exists():
-        with open(DICTIONARY_PATH, "r") as f:
-            data = json.load(f)
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        if DICTIONARY_PATH.exists():
+            with open(DICTIONARY_PATH, "r") as f:
+                data = json.load(f)
+            
+            return data
         
-        return data
+        else:
+            return None
     
-    else:
+    except:
+        logger.error("Error while reading the dictionary!", exc_info=sys.exc_info())
         return None
 
 cached_dictionary: Optional[BoqwizDictionary] = None
@@ -124,9 +130,17 @@ def update_dictionary():
     """
 
     global cached_dictionary
+
+    # download the manifest and the latest version
     logger.info("Updating boQwI'...")
-    manifest = requests.get(KAWHAQ_URL + "manifest.json").json()
-    latest = manifest[FORMAT]["latest"]
+    try:
+        manifest = requests.get(KAWHAQ_URL + "manifest.json").json()
+        latest = manifest[FORMAT]["latest"]
+    except:
+        logger.error("Error while fetching the qawHaq manifest!", exc_info=sys.exc_info())
+        return
+
+    # check for existing versions of the dictionary
 
     if cached_dictionary and cached_dictionary.version == latest:
         logger.info(f"No update required.")
@@ -137,12 +151,18 @@ def update_dictionary():
         logger.info(f"No update required.")
         return
     
-    logger.info(f"Downloading boQwI' version {latest}...")
-    url = KAWHAQ_URL + manifest[FORMAT][latest]["path"]
-    archive = requests.get(url).content
-    data = bz2.decompress(archive).decode("utf-8")
+    # install the update
+    try:
+        logger.info(f"Downloading boQwI' version {latest}...")
+        url = KAWHAQ_URL + manifest[FORMAT][latest]["path"]
+        archive = requests.get(url).content
+        data = bz2.decompress(archive).decode("utf-8")
 
-    with open(DICTIONARY_PATH, "w") as f:
-        f.write(data)
+        with open(DICTIONARY_PATH, "w") as f:
+            f.write(data)
 
-    logger.info(f"Updated boQwI' to version {latest}.")
+        logger.info(f"Updated boQwI' to version {latest}.")
+    
+    except:
+        logger.error("Error while updating the dictionary!", exc_info=sys.exc_info())
+        return
