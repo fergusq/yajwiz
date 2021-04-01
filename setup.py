@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="yajwiz",
-    version="0.5.5",
+    version="0.6.0",
     author="Iikka Hauhio",
     author_email="fergusq@kaivos.org",
     packages=["yajwiz"],
@@ -12,7 +12,5 @@ setup(
         "Programming Language :: Python :: 3"
     ],
     python_requires='>=3.8',
-    package_data={
-        'yajwiz': ['data.json'],
-    },
+    install_requires=["appdirs", "requests"]
 )

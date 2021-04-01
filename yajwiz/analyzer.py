@@ -1,30 +1,16 @@
-import json
 import re
 from collections import defaultdict
 import copy
-import os
 
 from typing import DefaultDict, Dict, List, NamedTuple, Set, Tuple, Optional, Literal, TypedDict
+from yajwiz.boqwiz import BoqwizEntry, load_dictionary
 
 from .tables import SUFFIX_TYPES, UNIVERSAL_FEATURES, XPOS_TO_UPOS, PREFIX_TABLE, Person, Number
 
 Xpos = Literal["VS", "VT", "VI", "VA", "V?", "NL", "NB", "PRON", "NUM", "N", "ADV", "EXCL", "CONJ", "QUES", "UNK"]
 
-class BoqwizEntry(TypedDict):
-    entry_name: str
-    part_of_speech: str
-
-def _parse_boqwiz_pos(pos: str) -> Set[str]:
-    colon = pos.split(":")
-    if len(colon) == 1:
-        return set(colon)
-    
-    [tpos, tags] = colon
-    comma = tags.split(",")
-    return set([tpos]+comma)
-
 def _get_xpos(entry: BoqwizEntry) -> Xpos:
-    pos2 = _parse_boqwiz_pos(entry["part_of_speech"])
+    pos2 = entry.tags
     if "v" in pos2 and "is" in pos2:
         return "VS"
     
@@ -46,10 +32,10 @@ def _get_xpos(entry: BoqwizEntry) -> Xpos:
     elif pos2 & {"n"} and pos2 & {"body"}:
         return "NB"
     
-    elif pos2 & {"n"} and ("pro" in pos2 or entry["entry_name"] in {"'Iv", "nuq", "jIH"}):
+    elif pos2 & {"n"} and ("pro" in pos2 or entry.name in {"'Iv", "nuq", "jIH"}):
         return "PRON"
     
-    elif pos2 & {"n"} and entry["entry_name"] in {"wa'", "cha'", "wej", "loS", "vagh", "jav", "Soch", "chorgh", "Hut"}:
+    elif pos2 & {"n"} and entry.name in {"wa'", "cha'", "wej", "loS", "vagh", "jav", "Soch", "chorgh", "Hut"}:
         return "NUM"
     
     elif pos2 & {"n"}:
@@ -70,10 +56,7 @@ def _get_xpos(entry: BoqwizEntry) -> Xpos:
     else:
         return "UNK"
 
-SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-
-with open(os.path.join(SCRIPT_DIR, "data.json"), "r") as f:
-    data = json.load(f)
+dictionary = load_dictionary()
 
 VERBS: List[str] = []
 STATIVE_VERBS: List[str] = ["lo'laH", "lo'laHbe'"]
@@ -85,13 +68,12 @@ DERIV_NOUNS: List[str] = []
 
 ALL_WORDS: Set[str] = set()
 WORD_INDEX: DefaultDict[str, List[BoqwizEntry]] = defaultdict(lambda: [])
-XPOS_INDEX: DefaultDict[str, Set[BoqwizEntry]] = defaultdict(set)
+XPOS_INDEX: DefaultDict[str, Set[str]] = defaultdict(set)
 
-for boqwiz_id in data["qawHaq"]:
-    entry = data["qawHaq"][boqwiz_id]
-    entry["id"] = boqwiz_id
-    word = entry["entry_name"]
-    pos = _parse_boqwiz_pos(entry["part_of_speech"])
+for boqwiz_id in dictionary.entries:
+    entry = dictionary.entries[boqwiz_id]
+    word = entry.name
+    pos = entry.tags
     if "hyp" in pos:
         continue
 
@@ -327,13 +309,13 @@ def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Patter
                 objs = []
                 for entry in WORD_INDEX[part + ":" + pos]:
                     new_obj = copy.deepcopy(obj)
-                    new_obj["PARTS"].append(entry["id"])
+                    new_obj["PARTS"].append(entry.id)
                     if i == lemma_idx:
                         #new_obj["BOQWIZ"] = entry
 
                         new_obj["XPOS"] = _get_xpos(entry)
-                        new_obj["BOQWIZ_POS"] = entry["part_of_speech"]
-                        new_obj["BOQWIZ_ID"] = entry["id"]
+                        new_obj["BOQWIZ_POS"] = entry.part_of_speech
+                        new_obj["BOQWIZ_ID"] = entry.id
 
                         if not lemma_pred(entry):
                             continue
@@ -401,12 +383,12 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
         for entry in WORD_INDEX[word + ":other"]:
             ans.append({
                 "WORD": word,
-                "LEMMA": entry["entry_name"],
+                "LEMMA": entry.name,
                 "POS": "OTHER",
                 "XPOS": _get_xpos(entry),
-                "BOQWIZ_POS": entry["part_of_speech"],
-                "BOQWIZ_ID": entry["id"],
-                "PARTS": [ entry["id"] ],
+                "BOQWIZ_POS": entry.part_of_speech,
+                "BOQWIZ_ID": entry.id,
+                "PARTS": [ entry.id ],
             })
     
     for analysis in ans:

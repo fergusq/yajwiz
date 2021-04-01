@@ -14,6 +14,21 @@ It can be installed from PyPI::
 
     pip install yajwiz
 
+Updating and using the boQwI' dictionary
+----------------------------------------
+
+When yajwI' is first imported, it will download a copy of the boQwI' dictionary.
+After this the ``update_dictionary()`` function must be called whenever the dictionary needs to be updated.
+The function will check for updates and install them.
+
+The downloaded dictionary can be accessed through the ``load_dictionary()`` function.
+
+>>> import yajwiz
+>>> yajwiz.update_dictionary()
+>>> dictionary = yajwiz.load_dictionary()
+>>> dictionary.version
+'2021.03.18a'
+
 Tokenization
 ------------
 
@@ -30,27 +45,25 @@ Morphological analysis
 The ``yajwiz.analyze`` function parses a word and returns a list of possible parses and a lot of extra information.
 
 >>> yajwiz.analyze("yInwI'")
-[
-    {
-        'WORD': "yInwI'",
-        'POS': 'N',
-        'XPOS': 'N',
-        'PARTS': ['yIn:n', "-wI':n:suff"],
-        'LEMMA': 'yIn',
-        'SUFFIX': {'N4': "-wI'"},
-        'XPOS_GSUFF': 'N',
-        'UNGRAMMATICAL': True
-    },
-    {
-        'WORD': "yInwI'",
-        'POS': 'V',
-        'XPOS': 'VT',
-        'PARTS': ['yIn:v:t_c', "-wI':v:suff"],
-        'LEMMA': 'yIn',
-        'SUFFIX': {'V9': "-wI'"},
-        'XPOS_GSUFF': "VT.wI'"
-    }
-]
+[{'BOQWIZ_ID': 'yIn:n',
+  'BOQWIZ_POS': 'n:klcp1',
+  'LEMMA': 'yIn',
+  'PARTS': ['yIn:n', "-wI':n"],
+  'POS': 'N',
+  'SUFFIX': {'N4': "-wI'"},
+  'UNGRAMMATICAL': 'ILLEGAL PLURAL OR POSSESSIVE SUFFIX',
+  'WORD': "yInwI'",
+  'XPOS': 'N',
+  'XPOS_GSUFF': 'N'},
+ {'BOQWIZ_ID': 'yIn:v',
+  'BOQWIZ_POS': 'v:t_c,klcp1',
+  'LEMMA': 'yIn',
+  'PARTS': ['yIn:v', "-wI':v"],
+  'POS': 'V',
+  'SUFFIX': {'V9': "-wI'"},
+  'WORD': "yInwI'",
+  'XPOS': 'VT',
+  'XPOS_GSUFF': "VT.wI'"}]
 
 Currently the analyzer is very permissive and does allow using wrong plurals and possessive suffixes (eg. **yInwI'** instead of **yInwIj**). It will try to mark this kind of errors with ``'UNGRAMMATICAL': True``. It detects the following errors:
 
@@ -171,6 +184,6 @@ Copyright
 
 yajwiz (c) 2020 Iikka Hauhio
 
-This program a contains the `boQwI' dictionary <https://github.com/De7vID/klingon-assistant-data>`_ (``data.json``) that is licensed under the Apache License 2.0.
+This program a uses the `boQwI' dictionary <https://github.com/De7vID/klingon-assistant-data>`_ (``data.json``) that is licensed under the Apache License 2.0.
 
 The Python files are also licensed under the Apache License 2.0. See the LICENSE file for more details.
