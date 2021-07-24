@@ -1,4 +1,4 @@
-from typing import Dict, List, NamedTuple, Optional, Set, Tuple
+from typing import Dict, List, NamedTuple, Optional, Set, Tuple, Union
 import appdirs
 import bz2
 import json
@@ -6,6 +6,7 @@ from pathlib import Path
 import requests
 import logging
 import sys
+import unicodedata
 
 logger = logging.Logger("yajwiz")
 
@@ -91,12 +92,30 @@ class BoqwizDictionary(NamedTuple):
     def __repr__(self):
         return f"<BoqwizDictionary version={self.version}>"
 
+def _normalize(data: Union[str, int, float, dict, list]) -> Union[str, int, float, dict, list]:
+    if isinstance(data, str):
+        return unicodedata.normalize("NFC", data)
+    
+    elif isinstance(data, dict):
+        return {
+            _normalize(key): _normalize(value)
+            for key, value in data.items()
+        }
+    
+    elif isinstance(data, list):
+        return [_normalize(item) for item in data]
+    
+    else:
+        return data
+
 def _try_load() -> Optional[dict]:
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         if DICTIONARY_PATH.exists():
             with open(DICTIONARY_PATH, "r") as f:
-                data = json.load(f)
+                data = f.read()
+                data = json.loads(data)
+                data = _normalize(data)
             
             return data
         
