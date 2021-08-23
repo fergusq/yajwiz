@@ -3,11 +3,11 @@ from collections import defaultdict
 import copy
 
 from typing import DefaultDict, Dict, List, NamedTuple, Set, Tuple, Optional, Literal, TypedDict
+from yajwiz.grammar_rules import proofread_tokens
 from yajwiz.boqwiz import BoqwizEntry, load_dictionary
 
 from .tables import SUFFIX_TYPES, UNIVERSAL_FEATURES, XPOS_TO_UPOS, PREFIX_TABLE, Person, Number
-
-Xpos = Literal["VS", "VT", "VI", "VA", "V?", "NL", "NB", "PRON", "NUM", "N", "ADV", "EXCL", "CONJ", "QUES", "UNK"]
+from .types import ProofreaderError, Token, TokenType, Xpos, Analysis, SyntaxInfo
 
 def _get_xpos(entry: BoqwizEntry) -> Xpos:
     pos2 = entry.tags
@@ -240,30 +240,6 @@ def split_to_syllables(word: str) -> List[str]:
     
     return syllables
 
-class SyntaxInfo(TypedDict, total=False):
-    ROLE: Literal["NP", "VP", "OTHER"]
-    OBJECT_PERSON: Set[Person]
-    OBJECT_NUMBER: Optional[Number]
-    SUBJECT_PERSON: Set[Person]
-    SUBJECT_NUMBER: Optional[Number]
-    PLURAL: bool
-
-class _AnalysisRequired(TypedDict):
-    WORD: str
-    LEMMA: str
-    POS: str
-    XPOS: Xpos
-    BOQWIZ_POS: str
-    BOQWIZ_ID: str
-    PARTS: List[str]
-
-class Analysis(_AnalysisRequired, total=False):
-    PREFIX: str
-    SUFFIX: Dict[str, str]
-    XPOS_GSUFF: str
-    UNGRAMMATICAL: str
-    SYNTAX_INFO: SyntaxInfo
-
 def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Pattern, lemma_idx: int, word: str, infl_pos:str=None, lemma_pred=lambda l: True):
     if m := regex.fullmatch(word):
         parsed = list(m.groups())
@@ -437,6 +413,7 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
         
         # Add extra information regarding the words rule in the syntax
         if include_syntactical_info:
+            bits = {analysis["XPOS"], analysis["POS"], f"«{analysis['WORD']}»"}
             info: SyntaxInfo = {}
             analysis["SYNTAX_INFO"] = info
             if analysis["POS"] == "N":
@@ -451,6 +428,8 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
             else:
                 info["ROLE"] = "OTHER"
             
+            bits |= {info["ROLE"]}
+            
             if info["ROLE"] == "VP":
                 voice = "NP" if "-lu':v" in analysis["PARTS"] else "P"
                 subj_person: Set[Person]
@@ -458,7 +437,14 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
                 obj_person: Set[Person]
                 obj_number: Optional[Number]
                 if "PREFIX" in analysis or voice == "NP":
-                    subj_person, subj_number, obj_person, obj_number = PREFIX_TABLE[(analysis.get("PREFIX", "-"), voice)]
+                    if (analysis.get("PREFIX", "-"), voice) not in PREFIX_TABLE: # ungrammatical word
+                        subj_person = set()
+                        subj_number = None
+                        obj_person = set()
+                        obj_number = None
+                    
+                    else:
+                        subj_person, subj_number, obj_person, obj_number = PREFIX_TABLE[(analysis.get("PREFIX", "-"), voice)]
                 
                 elif analysis["XPOS"] in {"VS", "VI"}:
                     subj_person = {3}
@@ -476,13 +462,41 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
                 info["SUBJECT_NUMBER"] = subj_number
                 info["OBJECT_PERSON"] = obj_person
                 info["OBJECT_NUMBER"] = obj_number
+
+                for person in subj_person:
+                    bits |= {f"Subj{person}{subj_number or ''}", f"Subj{person}"}
+                    if subj_number:
+                        bits |= {f"Subj{subj_number}"}
+
+                for person in obj_person:
+                    bits |= {f"Obj{person}{subj_number or ''}", f"Obj{person}"}
+                    if obj_number:
+                        bits |= {f"Obj{obj_number}"}
             
             elif info["ROLE"] == "NP":
                 if "inhps" in analysis["BOQWIZ_POS"] or "inhpl" in analysis["BOQWIZ_POS"]:
                     info["PLURAL"] = False
+                    bits |= {"Singular"}
 
                 if analysis.get("SUFFIX", {}).get("N2", None) in {"-pu'", "-Du'", "-mey"}:
                     info["PLURAL"] = True
+                    bits |= {"Plural"}
+            
+            
+            for part in analysis["PARTS"]:
+                if ":" not in part:
+                    bits |= {part}
+                
+                else:
+                    bits |= {part, part[:part.index(":")]}
+            
+            for key, val in analysis.get("SUFFIX", {}).items():
+                bits |= {key, val}
+            
+            if prefix := analysis.get("PREFIX", None):
+                bits |= {prefix}
+            
+            info["BITS"] = bits
 
     return ans
 
@@ -523,8 +537,6 @@ def _word_to_conllu(num: int, word: str, analyses: List[Analysis]) -> tuple:
 
     return (str(num), word, analysis["LEMMA"], upos, xpos, "_" if not feats else "|".join(feats), "_", "_", "_", "_" if not extra else "|".join(extra))
 
-TokenType = Literal["WORD", "SPACE", "PUNCT"]
-
 def tokenize(sentence: str) -> List[Tuple[TokenType, str]]:
     """
     Tokenizes the given text and returns a list of tuples with form `(type, value)` where type is one of `"WORD"`, `"SPACE"`, `"PUNCT"`.
@@ -543,12 +555,22 @@ def tokenize(sentence: str) -> List[Tuple[TokenType, str]]:
     
     return tokens
 
-class ProofreaderError(NamedTuple):
-    message: str
-    location: int
-    end_location: int
+def _tokenize_for_proofreader(sentence: str) -> List[Token]:
+    tokens: List[Token] = []
+    char = 0
+    for token in tokenize(sentence):
+        if token[0] != "SPACE":
+            tokens.append(Token(char, token[0], token[1], analyze(token[1], include_syntactical_info=True)))
+        
+        char += len(token[1])
+    
+    return tokens
 
 def get_errors(sentence: str) -> List[ProofreaderError]:
+    tokens = _tokenize_for_proofreader(sentence)
+    return proofread_tokens(tokens)
+
+def get_errors_old(sentence: str) -> List[ProofreaderError]:
     errors: List[ProofreaderError] = []
     tokens: List[Tuple[int, TokenType, str]] = []
     char = 0
@@ -564,11 +586,11 @@ def get_errors(sentence: str) -> List[ProofreaderError]:
         if token1_type == "WORD":
             token1 = analyze(token1_text)
             if not token1:
-                errors.append(ProofreaderError(f"UNKNOWN WORD {token1_text}", pos, end_pos))
+                errors.append(ProofreaderError("unknown word", f"UNKNOWN WORD {token1_text}", pos, end_pos))
                 continue
 
             if all(token.get("UNGRAMMATICAL", None) for token in token1):
-                errors.append(ProofreaderError(token1[0]["UNGRAMMATICAL"], pos, end_pos))
+                errors.append(ProofreaderError("ungrammatical", token1[0]["UNGRAMMATICAL"], pos, end_pos))
 
             if i > len(tokens)-2:
                 continue
@@ -583,9 +605,13 @@ def get_errors(sentence: str) -> List[ProofreaderError]:
             if not token2:
                 continue
 
-            if token1_text == "'e'":
+            if token1_text == "net":
                 if all("V7" in token.get("SUFFIX", {}) for token in token2):
-                    errors.append(ProofreaderError("ASPECT SUFFIX IN COMPLEX SENTENCE", pos, token2_end_pos))
+                    errors.append(ProofreaderError("", "ASPECT SUFFIX IN COMPLEX SENTENCE", pos, token2_end_pos))
+
+            elif token1_text == "'e'":
+                if all("V7" in token.get("SUFFIX", {}) for token in token2):
+                    errors.append(ProofreaderError("", "ASPECT SUFFIX IN COMPLEX SENTENCE", pos, token2_end_pos))
 
                 token3_pos, token3_type, token3_text = tokens[i+2] if i <= len(tokens)-3 else (0, None, "")
                 token3_end_pos = token3_pos + len(token3_text)
@@ -597,10 +623,10 @@ def get_errors(sentence: str) -> List[ProofreaderError]:
                     token3 = []
 
                 if token2_text in {"neH", "neHHa'", "je"} and token3 and all("V7" in token.get("SUFFIX", {}) for token in token3):
-                    errors.append(ProofreaderError("ASPECT SUFFIX IN COMPLEX SENTENCE", pos, token3_end_pos))
+                    errors.append(ProofreaderError("", "ASPECT SUFFIX IN COMPLEX SENTENCE", pos, token3_end_pos))
 
                 if all(token["BOQWIZ_ID"] == "neH:v" for token in token2) or token2_text == "neH" and not any(3 in token.get("SYNTAX_INFO", {}).get("OBJECT_PERSON", set()) for token in token3):
-                    errors.append(ProofreaderError("'e' WITH neH", pos, token2_end_pos))
+                    errors.append(ProofreaderError("", "'e' WITH neH", pos, token2_end_pos))
 
     return errors
 

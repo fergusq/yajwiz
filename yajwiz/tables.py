@@ -3,7 +3,7 @@
 from typing import Dict, Literal, Optional, Set, Tuple
 
 
-SUFFIX_TYPES = {
+SUFFIX_TYPES: Dict[Tuple[str, str], str] = {
     ("-'a'", "n"): "N1",
     ("-Hom", "n"): "N1",
     ("-oy", "n"): "N1",
@@ -120,7 +120,7 @@ XPOS_TO_UPOS = {
     "UNK": "X",
 }
 
-UNIVERSAL_FEATURES = {
+UNIVERSAL_FEATURES: Dict[Tuple[str, str], str] = {
     #("-'a'", "N1"): "",
     #("-Hom", "N1"): "",
     #("-oy", "N1"): "",
