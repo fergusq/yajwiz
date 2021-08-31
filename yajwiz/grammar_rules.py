@@ -98,11 +98,11 @@ def _pattern_to_regex(pattern: str) -> Tuple[re.Pattern, List[str]]:
             
             if group_name:
                 regex_parts += [f"(?P<{group_name}>"]
-                regex_parts += [bitcond]
+                regex_parts += ["(?:", bitcond, ")"]
                 regex_parts += [")"]
             
             else:
-                regex_parts += [bitcond]
+                regex_parts += ["(?:", bitcond, ")"]
             
             pattern = pattern[end_index+1:]
         
@@ -115,7 +115,7 @@ def _pattern_to_regex(pattern: str) -> Tuple[re.Pattern, List[str]]:
             
             pattern = pattern[1:]
         
-        elif not group_name and pattern[0] in "*+?|)":
+        elif not group_name and pattern[0] in "*+?|)^$":
             regex_parts += [pattern[0]]
             pattern = pattern[1:]
         
@@ -179,7 +179,7 @@ class GrammarRule(NamedTuple):
 
 GRAMMAR_RULES: List[GrammarRule] = [
     GrammarRule.from_dict(
-        name="aspect in complex sentence 1",
+        name="aspect in complex sentence",
         pattern=r"({«'e'»}|{«net»}) ({«neH»}|{«neHHa'»})? {V7}",
         message="ASPECT SUFFIX IN COMPLEX SENTENCE",
         positive_examples=["DaH 'e' vIleghpu'", "DaH net leghtaH", "DaH 'e' neH vIleghpu'", "DaH net neHHa' leghtaH"],
@@ -194,7 +194,7 @@ GRAMMAR_RULES: List[GrammarRule] = [
     ),
     GrammarRule.from_dict(
         name="illegal 'e' or net",
-        pattern=r"error({«'e'»}|{«net»}) verb({reH:v}|{Quj}|{jatlh:v}|{ja':v})",
+        pattern=r"error({«'e'»}|{«net»}) ({«neH»}|{«neHHa'»})? verb({reH:v}|{Quj}|{jatlh:v}|{ja':v})",
         message="$error WITH $verb\\lemma",
         replacement="",
         positive_examples=["tugh jISuv 'e' qaja'."],
@@ -215,6 +215,38 @@ GRAMMAR_RULES: List[GrammarRule] = [
         replacement="",
         positive_examples=["tugh jISuv 'e' neH qorDu'wIj."],
         negative_examples=["tugh jISuv neH qorDu'wIj.", "tugh jISuv 'e' neH DaSov."]
+    ),
+    GrammarRule.from_dict(
+        name="possessive suffix with direction noun",
+        pattern=r"{LocativeNoun,PossessiveSuffix}",
+        message="POSSESSIVE SUFFIX WITH LOCATIVE NOUN",
+        replacement="",
+        positive_examples=["bIngwIjDaq Hovmey vIlegh."],
+        negative_examples=["jIH bIngDaq Hovmey vIlegh.", "chanwIjDaq Hovmey vIlegh.", "nIHDajDaq Hovmey legh."]
+    ),
+    GrammarRule.from_dict(
+        name="singular object with plural prefix",
+        pattern=r"(^|{Punct}|{N5,!-'e'}|{ADV,!«neH»}|{«'ej»}|{«qoj»}|{«'ach»}|{«'a»}|{-lu'}) {N}* {Singular} {VS}? ({«neH»}|{«neHHa'»})? error{Obj3Plur,!Obj3Sing}",
+        message="SINGULAR OBJECT WITH PLURAL PREFIX",
+        replacement="",
+        positive_examples=["jengva' DISay'moH.", "juHwIjDaq vavwIj ngop 'IH neH DISay'moH.", "ngop lutu'lu'."],
+        negative_examples=["jengva' wISay'moH.", "juHwIjDaq vavwIj ngop 'IH neH wISay'moH.", "ngop tu'lu'.", "qaStaHvIS jaj vorgh DIleghpu'."]
+    ),
+    GrammarRule.from_dict(
+        name="plural object with singular prefix",
+        pattern=r"(^|{Punct}|{N5,!-'e'}|{ADV,!«neH»}|{«'ej»}|{«qoj»}|{«'ach»}|{«'a»}|{-lu'}) {N}* {Plural} {VS}? ({«neH»}|{«neHHa'»})? error{Obj3Sing,!Obj3Plur}",
+        message="PLURAL OBJECT WITH SINGULAR PREFIX",
+        replacement="",
+        positive_examples=["HIvje'mey wISay'moH.", "juHwIjDaq vavwIj HIvje'mey 'IH neH wISay'moH.", "SuvwI'pu' ghIjlu'."],
+        negative_examples=[
+            "HIvje'mey DISay'moH.",
+            "juHwIjDaq vavwIj HIvje'mey 'IH neH DISay'moH.",
+            "SuvwI'pu' lughIjlu'.",
+            "SuvwI'pu' tu'lu'.",
+            "SuvwI'pu' lutu'lu'.",
+            "qaStaHvIS naH jajmeymaj wIleghpu'.",
+            "tlhInganpu' lutu'lu'mo'",
+            "ta'mey Dun vIta'rup jISeH'eghnIS\nmuDechbogh Dochmey vISeHnIS\nHoch vISeHnIS"]
     ),
 ]
 

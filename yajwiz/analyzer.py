@@ -6,7 +6,7 @@ from typing import DefaultDict, Dict, List, NamedTuple, Set, Tuple, Optional, Li
 from yajwiz.grammar_rules import proofread_tokens
 from yajwiz.boqwiz import BoqwizEntry, load_dictionary
 
-from .tables import SUFFIX_TYPES, UNIVERSAL_FEATURES, XPOS_TO_UPOS, PREFIX_TABLE, Person, Number
+from .tables import LOCATIVE_NOUNS, SUFFIX_TYPES, UNIVERSAL_FEATURES, XPOS_TO_UPOS, PREFIX_TABLE, Person, Number
 from .types import ProofreaderError, Token, TokenType, Xpos, Analysis, SyntaxInfo
 
 def _get_xpos(entry: BoqwizEntry) -> Xpos:
@@ -62,7 +62,7 @@ VERBS: List[str] = []
 STATIVE_VERBS: List[str] = ["lo'laH", "lo'laHbe'"]
 NOUNS: List[str] = []
 
-DERIV_VERBS: List[str] = ["lo'laH", "lo'laHbe'"]
+DERIV_VERBS: List[str] = ["lo'laH", "lo'laHbe'", "tu'lu'"]
 DERIV_STATIVE_VERBS: List[str] = []
 DERIV_NOUNS: List[str] = []
 
@@ -386,7 +386,7 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
                 "being" if "being" in analysis["BOQWIZ_POS"] or "name" in analysis["BOQWIZ_POS"] else \
                 "other"
 
-            if analysis["LEMMA"] in {"qorDu'", "latlh"}: # these can be either language users or others
+            if analysis["LEMMA"] in {"qorDu'", "latlh", "Hoch", "vay'", "'Iv"}: # these can be either language users or others
                 gender = "being"
             
             for part in analysis["PARTS"]:
@@ -403,7 +403,7 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
         
         # Do not include XPOS=VI here because data is unreliable
         if analysis["XPOS"] in {"VS"} and analysis.get("PREFIX", "") not in {"yI-", "pe-", "jI-", "bI-", "ma-", "Su-", ""} and "-moH:v" not in analysis["PARTS"]:
-            analysis["UNGRAMMATICAL"] = "ILLEGAL SUFFIX WITH INTRANSITIVE VERB"
+            analysis["UNGRAMMATICAL"] = "ILLEGAL PREFIX WITH INTRANSITIVE VERB"
         
         if "-ghach:v" in analysis["PARTS"] and analysis["PARTS"].index("-ghach:v") - analysis["PARTS"].index(analysis["BOQWIZ_ID"]) < 2 and analysis["LEMMA"] not in {"lo'laH", "lo'laHbe'"}:
             analysis["UNGRAMMATICAL"] = "-ghach WITHOUT OTHER SUFFIX"
@@ -469,9 +469,14 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
                         bits |= {f"Subj{subj_number}"}
 
                 for person in obj_person:
-                    bits |= {f"Obj{person}{subj_number or ''}", f"Obj{person}"}
+                    bits |= {f"Obj{person}{obj_number or ''}", f"Obj{person}"}
                     if obj_number:
                         bits |= {f"Obj{obj_number}"}
+                
+                if "tu':v" in analysis["PARTS"] and "-lu':v" in analysis["PARTS"]:
+                    bits |= {f"tu'lu':v"}
+                    if analysis.get("PREFIX", "-") == "-":
+                        bits |= {"ObjPlur", "Obj3Plur"}
             
             elif info["ROLE"] == "NP":
                 if "inhps" in analysis["BOQWIZ_POS"] or "inhpl" in analysis["BOQWIZ_POS"]:
@@ -481,6 +486,10 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
                 if analysis.get("SUFFIX", {}).get("N2", None) in {"-pu'", "-Du'", "-mey"}:
                     info["PLURAL"] = True
                     bits |= {"Plural"}
+                
+                n4 = analysis.get("SUFFIX", {}).get("N4", None)
+                if n4 and n4 not in {"-vam", "-vetlh"}:
+                    bits |= {"PossessiveSuffix"}
             
             
             for part in analysis["PARTS"]:
@@ -489,6 +498,9 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
                 
                 else:
                     bits |= {part, part[:part.index(":")]}
+                
+                if part in LOCATIVE_NOUNS:
+                    bits |= {"LocativeNoun"}
             
             for key, val in analysis.get("SUFFIX", {}).items():
                 bits |= {key, val}

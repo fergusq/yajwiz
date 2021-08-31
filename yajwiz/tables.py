@@ -316,3 +316,14 @@ PREFIX_TABLE: Dict[
     ("-", "NP"): ({0}, None, {3,0}, "Sing"),
     ("lu-", "NP"): ({0}, None, {3}, "Plur"),
 }
+
+LOCATIVE_NOUNS = {
+    "Dung:n",
+    "bIng:n",
+    "retlh:n",
+    "tlhop:n:1",
+    "tlhop:n:2", # tälläkään ei tarvitse olla omistusliitettä
+    "'em:n",
+    "joj:n",
+    "Hay:n",
+}
