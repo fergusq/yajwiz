@@ -62,7 +62,7 @@ VERBS: List[str] = []
 STATIVE_VERBS: List[str] = ["lo'laH", "lo'laHbe'"]
 NOUNS: List[str] = []
 
-DERIV_VERBS: List[str] = ["lo'laH", "lo'laHbe'", "tu'lu'"]
+DERIV_VERBS: List[str] = ["lo'laH", "lo'laHbe'", "tu'lu'", "ja'chuq"]
 DERIV_STATIVE_VERBS: List[str] = []
 DERIV_NOUNS: List[str] = []
 
