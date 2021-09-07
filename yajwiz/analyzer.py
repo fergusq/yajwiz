@@ -80,7 +80,7 @@ for boqwiz_id in dictionary.entries:
     very_bad = "pref" in pos or "suff" in pos
 
     if "v" in pos:
-        good = not very_bad and word not in DERIV_VERBS and word not in DERIV_STATIVE_VERBS
+        good = not very_bad and word not in DERIV_VERBS and word not in DERIV_STATIVE_VERBS and not "deriv" in pos
         if good:
             VERBS.append(word)
         
@@ -89,11 +89,12 @@ for boqwiz_id in dictionary.entries:
 
         WORD_INDEX[word + ":v"].append(entry)
     
-        if good and "is" in pos:
-            STATIVE_VERBS.append(word)
-        
-        elif not very_bad:
-            DERIV_STATIVE_VERBS.append(word)
+        if "is" in pos:
+            if good:
+                STATIVE_VERBS.append(word)
+            
+            elif not very_bad:
+                DERIV_STATIVE_VERBS.append(word)
     
     elif "n" in pos:
         if not very_bad and word not in DERIV_NOUNS:
