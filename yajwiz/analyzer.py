@@ -245,6 +245,7 @@ def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Patter
     if m := regex.fullmatch(word):
         parsed = list(m.groups())
         def rec(i: int, pos: str, obj: Analysis):
+            rovers = []
             if i >= len(parsed):
                 return [obj]
 
@@ -270,6 +271,7 @@ def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Patter
                 if m in {"be'", "qu'"}:
                     obj["SUFFIX"][SUFFIX_TYPES[(part, pos)]] += m
                     i = j
+                    rovers.append(f"-{m}:v")
             
             else:
                 obj["LEMMA"] = part
@@ -287,6 +289,7 @@ def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Patter
                 for entry in WORD_INDEX[part + ":" + pos]:
                     new_obj = copy.deepcopy(obj)
                     new_obj["PARTS"].append(entry.id)
+                    new_obj["PARTS"] += rovers
                     if i == lemma_idx:
                         #new_obj["BOQWIZ"] = entry
 
@@ -303,6 +306,7 @@ def _analyze_word_with_pos(ans: List[Analysis], start_pos: str, regex: re.Patter
             
             else:
                 obj["PARTS"].append(part)
+                obj["PARTS"] += rovers
             
                 return rec(i + 1, new_pos, obj)
         
