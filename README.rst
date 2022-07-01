@@ -106,7 +106,7 @@ UNK   Unknown
 Grammar checker
 ---------------
 
-yajwI' can be used to find common grammar errors. You can either use the method ``yajwiz.get_errors`` or the following command line interface:
+yajwI' can be used to find common grammar errors. You can either use the method ``yajwiz.grammar_check`` or the following command line interface:
 
 .. code::
 
