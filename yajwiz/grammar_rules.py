@@ -1,5 +1,5 @@
 from functools import reduce
-import re
+import regex as re
 from typing import Callable, Dict, List, NamedTuple, Optional, Set, Tuple, Union
 from yajwiz.types import Analysis, ProofreaderError, TokenType, Token
 
@@ -263,7 +263,9 @@ def proofread_tokens(tokens: List[Token], rules=GRAMMAR_RULES) -> List[Proofread
     for token in tokens:
         if token.token_type == "WORD":
             if len(token.analyses) == 0:
-                errors.append(ProofreaderError("unknown word", f"UNKNOWN WORD {token.text}", token.location, token.end_location()))
+                # Do not complain about numbers or codes
+                if not (len(token.text) == 1 or len(re.findall(r"\d", token.text))/len(token.text) > 0.3):
+                    errors.append(ProofreaderError("unknown word", f"UNKNOWN WORD {token.text}", token.location, token.end_location()))
             
             elif all(a.get("UNGRAMMATICAL", None) for a in token.analyses):
                 errors.append(ProofreaderError("ungrammatical", token.analyses[0]["UNGRAMMATICAL"], token.location, token.end_location()))
