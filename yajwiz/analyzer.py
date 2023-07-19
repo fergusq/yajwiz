@@ -336,7 +336,7 @@ GENDERED_SUFFIXES = {
     "other": set(),
 }
 
-def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
+def analyze(word: str, include_syntactical_info=False, noun_drv_as_noun=False) -> List[Analysis]:
     """
     Given a word, returns a list of possible analyses.
 
@@ -515,7 +515,31 @@ def analyze(word: str, include_syntactical_info=False) -> List[Analysis]:
             
             info["BITS"] = bits
 
+        if noun_drv_as_noun:
+            if analysis["POS"] == "V" and analysis.get("SUFFIX", {}).get("V9", None) in {"-wI'", "-ghach"}:
+                analysis["POS"] = "N"
+                analysis["XPOS"] = "N"
+                lemma = ""
+                for part in analysis["PARTS"]:
+                    lemma += _get_part_form(part)
+                    if part in {"-wI':v", "-ghach:v"}:
+                        break
+
+                analysis["LEMMA"] = lemma
+
     return ans
+
+def _get_part_form(part: str) -> str:
+    if "-:" in part:
+        return part[:part.index("-")]
+
+    elif part.startswith("-") and ":" in part:
+        return part[1:part.index(":")]
+
+    elif ":" in part:
+        return part[:part.index(":")]
+
+    return part
 
 def _word_to_conllu(num: int, word: str, analyses: List[Analysis]) -> tuple:
     if len(analyses) == 0:
@@ -527,7 +551,8 @@ def _word_to_conllu(num: int, word: str, analyses: List[Analysis]) -> tuple:
             pass
 
         else:
-            return (str(num), word, "_", "_", "_", "_", "_", "_", "_", "_")
+            lemma = analyses[0]["LEMMA"] if len(set(analysis["LEMMA"] for analysis in analyses)) == 1 else "_"
+            return (str(num), word, lemma, "_", "_", "_", "_", "_", "_", "_")
     
     analysis = analyses[0]
     feats = []
@@ -536,12 +561,12 @@ def _word_to_conllu(num: int, word: str, analyses: List[Analysis]) -> tuple:
         extra.append("Prefix=" + analysis["PREFIX"])
         f = UNIVERSAL_FEATURES.get((analysis["PREFIX"], "P" if not analysis.get("SUFFIX", {}).get("V5", "") == "-lu'" else "NP"), None)
         if f:
-            feats.append(f)
+            feats += f.split("|")
     
     elif XPOS_TO_UPOS[analysis["XPOS"]] in {"VERB", "ADJ"}:
         f = UNIVERSAL_FEATURES.get(("-", "P" if not analysis.get("SUFFIX", {}).get("V5", "") == "-lu'" else "NP"), None)
         if f:
-            feats.append(f)
+            feats += f.split("|")
     
     xpos = analysis["XPOS_GSUFF"]
     upos = XPOS_TO_UPOS[analysis["XPOS"]]
@@ -550,9 +575,9 @@ def _word_to_conllu(num: int, word: str, analyses: List[Analysis]) -> tuple:
         for key in analysis["SUFFIX"]:
             extra.append("Suffix" + key + "=" + analysis["SUFFIX"][key])
             if (analysis["SUFFIX"][key], key) in UNIVERSAL_FEATURES:
-                feats.append(UNIVERSAL_FEATURES[(analysis["SUFFIX"][key], key)])
+                feats += UNIVERSAL_FEATURES[(analysis["SUFFIX"][key], key)].split("|")
 
-    return (str(num), word, analysis["LEMMA"], upos, xpos, "_" if not feats else "|".join(feats), "_", "_", "_", "_" if not extra else "|".join(extra))
+    return (str(num), word, analysis["LEMMA"], upos, xpos, "|".join(sorted(feats)).strip() or "_", "_", "_", "_", "|".join(extra).strip() or "_")
 
 def tokenize(sentence: str) -> List[Tuple[TokenType, str]]:
     """
@@ -669,7 +694,7 @@ def text_to_conllu_without_tagger(text: str) -> str:
                 i += 1
         
         else:
-            analyses = analyze(token)
+            analyses = analyze(token, noun_drv_as_noun=True)
             ans.append("\t".join(_word_to_conllu(i, token, analyses)))
             i += 1
     

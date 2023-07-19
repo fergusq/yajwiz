@@ -144,8 +144,8 @@ UNIVERSAL_FEATURES: Dict[Tuple[str, str], str] = {
     ("-raj", "N4"): "Poss=Yes|PossPerson=2|PossNumber=Plur",
     ("-Daj", "N4"): "Poss=Yes|PossPerson=3|PossNumber=Sing",
     ("-chaj", "N4"): "Poss=Yes|PossPerson=3|PossNumber=Plur",
-    ("-vam", "N4"): "",
-    ("-vetlh", "N4"): "",
+    #("-vam", "N4"): "",
+    #("-vetlh", "N4"): "",
 
     ("-Daq", "N5"): "Case=Loc",
     ("-vo'", "N5"): "Case=Ela",
@@ -155,7 +155,7 @@ UNIVERSAL_FEATURES: Dict[Tuple[str, str], str] = {
 
     ("HI-", "P"): "Mood=Imp|Person=2|ObjPerson=1|ObjNumber=Sing",
     ("gho-", "P"): "Mood=Imp|Person=2|ObjPerson=1|ObjNumber=Plur",
-    ("yI-", "P"): "Mood=Imp|Person=2|ObjPerson=3,0|ObjNumber=Sing",
+    ("yI-", "P"): "Mood=Imp|Person=2|ObjPerson=0,3|ObjNumber=Sing",
     ("tI-", "P"): "Mood=Imp|Person=2|ObjPerson=3|ObjNumber=Plur",
     ("pe-", "P"): "Mood=Imp|Person=2|Number=Plur|ObjPerson=0",
 
@@ -187,13 +187,13 @@ UNIVERSAL_FEATURES: Dict[Tuple[str, str], str] = {
     ("lI-", "P"): "Person=3|ObjPerson=2|ObjNumber=Plur",
     ("lu-", "P"): "Person=3|Number=Plur|ObjPerson=3|ObjNumber=Sing",
 
-    ("-", "P"): "Person=3|ObjPerson=3,0",
+    ("-", "P"): "Person=3|ObjPerson=0,3",
 
     ("vI-", "NP"): "Person=0|ObjPerson=1|ObjNumber=Sing",
     ("wI-", "NP"): "Person=0|ObjPerson=1|ObjNumber=Plur",
     ("Da-", "NP"): "Person=0|ObjPerson=2|ObjNumber=Sing",
     ("bo-", "NP"): "Person=0|ObjPerson=2|ObjNumber=Plur",
-    ("-", "NP"): "Person=0|ObjPerson=3,0|ObjNumber=Sing",
+    ("-", "NP"): "Person=0|ObjPerson=0,3|ObjNumber=Sing",
     ("lu-", "NP"): "Person=0|ObjPerson=3|ObjNumber=Plur",
     
 
