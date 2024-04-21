@@ -451,7 +451,7 @@ def analyze(word: str, include_syntactical_info=False, noun_drv_as_noun=False) -
                     else:
                         subj_person, subj_number, obj_person, obj_number = PREFIX_TABLE[(analysis.get("PREFIX", "-"), voice)]
                 
-                elif analysis["XPOS"] in {"VS", "VI"}:
+                elif analysis["XPOS"] in {"VS", "VI"} and "-moH:v" not in analysis["PARTS"]:
                     subj_person = {3}
                     subj_number = None
                     obj_person = {0}
@@ -482,6 +482,9 @@ def analyze(word: str, include_syntactical_info=False, noun_drv_as_noun=False) -
                     bits |= {f"tu'lu':v"}
                     if analysis.get("PREFIX", "-") == "-":
                         bits |= {"ObjPlur", "Obj3Plur"}
+
+                if set(analysis["PARTS"]).intersection({"-meH:v", "-DI':v", "-chugh:v", "-vIS:v", "-pa':v", "-mo':v"}):
+                    bits |= {"Subordinate"}
             
             elif info["ROLE"] == "NP":
                 if "inhps" in analysis["BOQWIZ_POS"] or "inhpl" in analysis["BOQWIZ_POS"]:

@@ -217,6 +217,14 @@ GRAMMAR_RULES: List[GrammarRule] = [
         negative_examples=["tugh jISuv neH qorDu'wIj.", "tugh jISuv 'e' neH DaSov."]
     ),
     GrammarRule.from_dict(
+        name="joq or ghap after a verb",
+        pattern=r"{VP,!-bogh,!VS} error({«joq»}|{«ghap»})",
+        message="$error after a verb",
+        replacement="",
+        positive_examples=["jISuv, jIghob joq.", "jISuvDI' joq jISov.", "yInnIS HeghnIS ghap."],
+        negative_examples=["SuvwI' ghobwI' joq yIbej.", "jagh, nuv Suvlu'bogh joq legh vIghro'.", "yInwI'pu', HeghwI'pu' ghap DImoj,", "jatlh SuvwI' quv, jagh quv joq."],
+    ),
+    GrammarRule.from_dict(
         name="possessive suffix with direction noun",
         pattern=r"{LocativeNoun,PossessiveSuffix}",
         message="POSSESSIVE SUFFIX WITH LOCATIVE NOUN",
